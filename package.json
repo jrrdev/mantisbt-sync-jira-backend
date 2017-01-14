@@ -1,0 +1,15 @@
+{
+    "name": "mantisbt-sync-jira",
+    "version": "0.1.0",
+    "description": "Batch creating new issues to Jira from MantisBT",
+    "author": "jrrdev",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/jrrdev/mantisbt-sync-jira-backend.git"
+    },
+    "dependencies": {
+        "restify": "~4.3.0",
+        "bunyan": "~1.8.5"
+    }
+}
