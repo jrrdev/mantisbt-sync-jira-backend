@@ -10,6 +10,7 @@
     },
     "dependencies": {
         "restify": "~4.3.0",
+        "restify-clients": "~1.5.0",
         "bunyan": "~1.8.5"
     }
 }
