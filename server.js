@@ -35,7 +35,7 @@ if (config.target.username) {
 
 function createSubTasks(parentKey) {
     if (config.subTasks && parentKey) {
-		logger.info("Creating subtask for Jira issue %d", parentKey);
+		logger.info("Creating subtask for Jira issue %s", parentKey);
 	
         for (var subtask in config.subTasks) {
             var jiraSubtask = {
@@ -64,6 +64,8 @@ function createSubTasks(parentKey) {
             });
         }
     }
+	
+	logger.info("End creating subtask for Jira issue %s", parentKey);
 }
 
 function pushToJira(issue) {
@@ -95,6 +97,7 @@ function pushToJira(issue) {
                         "summary": issue.summary,
                         "description": issue.description,
                         "reporter": config.source.username,
+						"customfield_10017": issue.id,
 						"customfield_10013": "A renseigner"
                     }
                 };
@@ -105,7 +108,7 @@ function pushToJira(issue) {
                     if (err) {
                         logger.error(err);
                     } else if (obj.key) {
-						logger.info("Ticket Jira créé : %s", obj.key);
+						logger.info("Jira issue created : %s", obj.key);
                         createSubTasks(obj.key);
                     }
                 });
