@@ -123,10 +123,31 @@ function getSourceIssues() {
     });
 }
 
+// Function to fetch an issue in Mantis
+function getSourceIssue(issueId) {
+
+    var uri = util.format('/bugs/%d', issueId);
+
+    mantisClient.get(uri, function (err, req, res, obj) {
+        if (err) {
+            logger.error(err);
+        } else if (obj) {
+               pushToJira(obj);
+        }
+    });
+}
+
 
 server.get('/launch/:projectId', function create(req, res, next) {
     logger.info("Staring sync for project %s", req.params.projectId);
     getSourceIssues();
+    res.send(200);
+    return next();
+});
+
+server.get('/launch/issue/:issueId', function create(req, res, next) {
+    logger.info("Staring sync for issue %s", req.params.issueId);
+    getSourceIssues(req.params.issueId);
     res.send(200);
     return next();
 });
