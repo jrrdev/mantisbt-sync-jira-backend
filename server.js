@@ -64,7 +64,7 @@ function createSubTasks(parentKey) {
 
 function pushToJira(issue) {
 
-    var jql = util.format('"customfield_10017" ~ "%s"', issue.id);
+    var jql = util.format('"cf[10017]" ~ "%s"', issue.id);
     var query = {
         "jql": jql,
         "startAt": 0,
