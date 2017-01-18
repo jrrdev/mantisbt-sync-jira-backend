@@ -34,7 +34,9 @@ if (config.target.username) {
 }
 
 function createSubTasks(parentKey) {
-    if (config.subTasks) {
+    if (config.subTasks && parentKey) {
+		logger.info("Creating subtask for Jira issue %d", parentKey);
+	
         for (var subtask in config.subTasks) {
             var jiraSubtask = {
                 "fields": {
@@ -52,8 +54,10 @@ function createSubTasks(parentKey) {
                     "reporter": config.source.username
                 }
             };
-
-            jiraClient.post('/issue', jiraIssue, function (err, req, res, obj) {
+			
+			logger.info("Creating subtask for Jira issue %d - %s", parentKey, subtask.summary);
+			
+            jiraClient.post('/jira2/rest/api/2/issue', jiraIssue, function (err, req, res, obj) {
                 if (err) {
                     logger.error(err);
                 }
@@ -74,11 +78,12 @@ function pushToJira(issue) {
         ]
     };
 
-    jiraClient.post('/search', query, function (err, req, res, obj) {
+    jiraClient.post('/jira2/rest/api/2/search', query, function (err, req, res, obj) {
         if (err) {
             logger.error(err);
         } else {
             if (!obj.issues || !obj.issues.length) {
+			
                 var jiraIssue = {
                     "fields": {
                         "project": {
@@ -89,14 +94,18 @@ function pushToJira(issue) {
                         },
                         "summary": issue.summary,
                         "description": issue.description,
-                        "reporter": config.source.username
+                        "reporter": config.source.username,
+						"customfield_10013": "A renseigner"
                     }
                 };
 
-                jiraClient.post('/issue', jiraIssue, function (err, req, res, obj) {
+				logger.info("Creating Jira issue for Mantis %d", issue.id);
+				
+                jiraClient.post('/jira2/rest/api/2/issue', jiraIssue, function (err, req, res, obj) {
                     if (err) {
                         logger.error(err);
                     } else if (obj.key) {
+						logger.info("Ticket Jira créé : %s", obj.key);
                         createSubTasks(obj.key);
                     }
                 });
@@ -132,6 +141,7 @@ function getSourceIssue(issueId) {
         if (err) {
             logger.error(err);
         } else if (obj) {
+			   logger.info("Pushing issue %d to Jira", issueId);
                pushToJira(obj);
         }
     });
@@ -147,7 +157,7 @@ server.get('/launch/:projectId', function create(req, res, next) {
 
 server.get('/launch/issue/:issueId', function create(req, res, next) {
     logger.info("Staring sync for issue %s", req.params.issueId);
-    getSourceIssues(req.params.issueId);
+    getSourceIssue(req.params.issueId);
     res.send(200);
     return next();
 });
