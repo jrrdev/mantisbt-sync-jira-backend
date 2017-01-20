@@ -34,10 +34,15 @@ if (config.target.username) {
 }
 
 function createSubTasks(parentKey) {
+
+	console.log("Start create subtasks" + JSON.stringify(config.subTasks));
+
     if (config.subTasks && parentKey) {
 		logger.info("Creating subtask for Jira issue %s", parentKey);
 	
-        for (var subtask in config.subTasks) {
+		for (var i = 0; i < config.subTasks.length; i++) {
+			var subtask = config.subTasks[i];
+			console.log("Start create subtask" + JSON.stringify(subtask));
             var jiraSubtask = {
                 "fields": {
                     "project": {
@@ -55,16 +60,21 @@ function createSubTasks(parentKey) {
                 }
             };
 			
+			console.log("POST create subtask");
 			logger.info("Creating subtask for Jira issue %d - %s", parentKey, subtask.summary);
+			console.log("POST 2 create subtask");
 			
             jiraClient.post('/jira2/rest/api/2/issue', jiraIssue, function (err, req, res, obj) {
                 if (err) {
                     logger.error(err);
                 }
             });
+			
+			console.log("End POST create subtask");
         }
     }
 	
+	console.log("End create subtask");
 	logger.info("End creating subtask for Jira issue %s", parentKey);
 }
 
