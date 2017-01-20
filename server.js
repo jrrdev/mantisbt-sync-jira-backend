@@ -61,10 +61,10 @@ function createSubTasks(parentKey) {
             };
 			
 			console.log("POST create subtask");
-			logger.info("Creating subtask for Jira issue %d - %s", parentKey, subtask.summary);
+			logger.info("Creating subtask for Jira issue %s - %s", parentKey, subtask.summary);
 			console.log("POST 2 create subtask");
 			
-            jiraClient.post('/jira2/rest/api/2/issue', jiraIssue, function (err, req, res, obj) {
+            jiraClient.post('/jira2/rest/api/2/issue', jiraSubtask, function (err, req, res, obj) {
                 if (err) {
                     logger.error(err);
                 }
