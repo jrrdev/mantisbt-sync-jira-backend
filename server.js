@@ -97,7 +97,7 @@ function pushToJira(issue) {
                         "summary": issue.summary,
                         "description": issue.description,
                         "reporter": config.source.username,
-						"customfield_10017": issue.id,
+						"customfield_10017": JSON.stringify(issue.id),
 						"customfield_10013": "A renseigner"
                     }
                 };
@@ -120,8 +120,8 @@ function pushToJira(issue) {
 // Function to fetch all active issues in Mantis
 function getSourceIssues() {
 
-    var uri = util.format('/bugs/search/findByProjectIdAndStatusIdNotIn?project=%s&status=%d',
-        config.source.project.id, 90);
+    var uri = util.format('/bugs/search/findByProjectIdAndStatusIdNotIn?project=%s&status=%d&projection=%s',
+        config.source.project.id, 90, "bugDetails");
 
     mantisClient.get(uri, function (err, req, res, obj) {
         if (err) {
@@ -138,7 +138,7 @@ function getSourceIssues() {
 // Function to fetch an issue in Mantis
 function getSourceIssue(issueId) {
 
-    var uri = util.format('/bugs/%d', issueId);
+    var uri = util.format('/bugs/%d?projection=%s', issueId, "bugDetails");
 
     mantisClient.get(uri, function (err, req, res, obj) {
         if (err) {
