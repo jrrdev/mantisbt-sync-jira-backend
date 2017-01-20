@@ -130,8 +130,10 @@ function getSourceIssues() {
             logger.error(err);
         } else {
             var issues = obj._embedded.bugs;
-            for (var issue in issues) {
-                pushToJira(issue);
+			for (var i = 0; i < issues.length; i++) {
+				var task = issues[i];
+				//console.log("Create issue : " + JSON.stringify(task));
+                pushToJira(task);
             }
         }
     });
@@ -147,6 +149,7 @@ function getSourceIssue(issueId) {
             logger.error(err);
         } else if (obj) {
 			   logger.info("Pushing issue %d to Jira", issueId);
+			   //console.log("Create issue : " + JSON.stringify(obj));
                pushToJira(obj);
         }
     });
