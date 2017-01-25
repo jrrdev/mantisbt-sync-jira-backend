@@ -16,6 +16,7 @@
 /libpeerconnection.log
 npm-debug.log
 testem.log
+server.log
 /typings
 
 # e2e
@@ -24,3 +25,6 @@ testem.log
 
 #System Files
 .DS_Store
+
+# Config file
+/config/param.json
