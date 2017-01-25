@@ -5,7 +5,8 @@ var util = require("util");
 var allConfig = require('./param.json');
 
 var logger = bunyan.createLogger({
-    name: "mantisbt-sync-jira"
+    name: "mantisbt-sync-jira",
+	level: "info"
 });
 
 var server = restify.createServer({
@@ -75,16 +76,34 @@ function pushToJira(config, jiraClient, issue) {
                         },
                         "issuetype": {
                             "id": config.convert.issueType.id
-                        },
-                        "summary": issue.summary,
-                        "description": issue.description,
-                        "reporter": config.source.username,
-						"customfield_10017": JSON.stringify(issue.id),
-						"customfield_10013": "A renseigner"
+                        }
                     }
                 };
+				
+				var mapping = config.convert.mapping;
+				for (var i = 0; i < mapping.length; i++) {
+					var mappedField = mapping[i];
+					if (mappedField['jiraName']) {
+						var jiraFieldName = mappedField['jiraName'];
+						if (mappedField['mantisName']) {
+							var mantisFieldName = mappedField['mantisName'];
+							var value = issue[mantisFieldName];
+							if (!(typeof value === 'string')) {
+								value = JSON.stringify(value);
+							}
+							jiraIssue['fields'][jiraFieldName] = value;
+						} else if (mappedField['defaultValue']) {
+							jiraIssue['fields'][jiraFieldName] = mappedField['defaultValue'];
+						} else {
+							logger.error("Can't find fieldValue in mapping", JSON.stringify(mappedField));
+						}
+					} else {
+						logger.error("Can't find jira field name in mapping", JSON.stringify(mappedField));
+					}
+				}
 
 				logger.info("Creating Jira issue for Mantis %d", issue.id);
+				logger.debug("Pushing issue data : %s", JSON.stringify(jiraIssue));
 				
                 jiraClient.post('/jira2/rest/api/2/issue', jiraIssue, function (err, req, res, obj) {
                     if (err) {
@@ -157,7 +176,7 @@ function synForConfig(config) {
 }
 
 server.get('/launch/:projectId', function create(req, res, next) {
-    logger.info("Staring sync for project %s", req.params.projectId);
+    logger.info("Starting sync for project %s", req.params.projectId);
 	
 	var config = getConfigForProject(req.params.projectId);
 	
@@ -172,13 +191,13 @@ server.get('/launch/:projectId', function create(req, res, next) {
     return next();
 });
 
-server.get('/launch/all', function create(req, res, next) {
+server.get('/launchAll', function create(req, res, next) {
 
 	var allProjects = allConfig.projects;
 	
 	for (var i = 0; i < allProjects.length; i++) {
 		var project = allProjects[i];
-		logger.info("Staring sync for project %s", project.id);
+		logger.info("Starting sync for project %s", project.id);
 		
 		synForConfig(project);
 	}
