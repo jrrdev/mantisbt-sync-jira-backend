@@ -6,7 +6,7 @@ var allConfig = require('./config/param.json');
 
 var logger = bunyan.createLogger({
     name: "mantisbt-sync-jira",
-	level: "info"
+	level: "debug"
 });
 
 var server = restify.createServer({
@@ -63,6 +63,7 @@ function pushToJira(config, jiraClient, issue) {
         ]
     };
 
+	logger.debug("Searching existing issue in Jira with id %s", issue.id);
     jiraClient.post('/jira2/rest/api/2/search', query, function (err, req, res, obj) {
         if (err) {
             logger.error(err);
@@ -135,6 +136,7 @@ function getConfigForProject(projectId) {
 // Function to fetch all active issues in Mantis
 function getSourceIssues(config, mantisClient, jiraClient) {
 
+	logger.debug("Retrieving open issues in Mantis");
     var uri = util.format('/bugs/search/findByProjectIdAndStatusIdNotIn?project=%s&status=%d&projection=%s',
         config.source.project.id, 90, "bugDetails");
 
@@ -152,6 +154,8 @@ function getSourceIssues(config, mantisClient, jiraClient) {
 }
 
 function synForConfig(config) {
+
+	logger.debug("Creating Mantis REST client for endpoint %s", config['source']['url']);
 	var mantisClient = restify.createJsonClient({
 			url: config['source']['url'],
 			version: '*',
@@ -162,6 +166,7 @@ function synForConfig(config) {
 		mantisClient.basicAuth(config.source.username, config.source.password);
 	}
 
+	logger.debug("Creating Jira REST client for endpoint %s", config.target.url);
 	var jiraClient = restify.createJsonClient({
 		url: config.target.url,
 		version: '*',
