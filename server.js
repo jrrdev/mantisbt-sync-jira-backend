@@ -2,7 +2,7 @@ var restify = require('restify');
 var bunyan = require('bunyan');
 var util = require("util");
 
-var allConfig = require('./param.json');
+var allConfig = require('./config/param.json');
 
 var logger = bunyan.createLogger({
     name: "mantisbt-sync-jira",
