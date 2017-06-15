@@ -53,7 +53,8 @@ function createSubTasks(config, jiraClient, parentKey) {
 
 function pushToJira(config, jiraClient, issue) {
 
-    var jql = util.format('"cf[10017]" ~ "%s"', issue.id);
+    var mantisJiraCorrelation = config.convert.issueType.mantisCorrelationField;
+    var jql = util.format('"%s" ~ "%s"', mantisJiraCorrelation, issue.id);
     var query = {
         "jql": jql,
         "startAt": 0,
@@ -137,8 +138,8 @@ function getConfigForProject(projectId) {
 function getSourceIssues(config, mantisClient, jiraClient) {
 
 	logger.debug("Retrieving open issues in Mantis");
-    var uri = util.format('/bugs/search/findByProjectIdAndStatusIdNotIn?project=%s&status=%d&projection=%s',
-        config.source.project.id, 90, "bugDetails");
+    var uri = util.format('/bugs/search/findByProjectIdAndStatusIdNotIn?project=%s&status=%s&projection=%s',
+        config.source.project.id, config.source.closeStatus, "bugDetails");
 
     mantisClient.get(uri, function (err, req, res, obj) {
         if (err) {
