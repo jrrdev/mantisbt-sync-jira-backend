@@ -40,7 +40,7 @@ function createSubTasks(config, jiraClient, parentKey) {
 			
 			logger.info("Creating subtask for Jira issue %s - %s", parentKey, subtask.summary);
 			
-            jiraClient.post('/jira2/rest/api/2/issue', jiraSubtask, function (err, req, res, obj) {
+            jiraClient.post('/issue', jiraSubtask, function (err, req, res, obj) {
                 if (err) {
                     logger.error(err);
                 }
@@ -64,7 +64,7 @@ function pushToJira(config, jiraClient, issue) {
     };
 
 	logger.debug("Searching existing issue in Jira with id %s", issue.id);
-    jiraClient.post('/jira2/rest/api/2/search', query, function (err, req, res, obj) {
+    jiraClient.post('/search', query, function (err, req, res, obj) {
         if (err) {
             logger.error(err);
         } else {
@@ -106,7 +106,7 @@ function pushToJira(config, jiraClient, issue) {
 				logger.info("Creating Jira issue for Mantis %d", issue.id);
 				logger.debug("Pushing issue data : %s", JSON.stringify(jiraIssue));
 				
-                jiraClient.post('/jira2/rest/api/2/issue', jiraIssue, function (err, req, res, obj) {
+                jiraClient.post('/issue', jiraIssue, function (err, req, res, obj) {
                     if (err) {
                         logger.error(err);
                     } else if (obj.key) {
