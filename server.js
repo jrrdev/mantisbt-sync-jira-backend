@@ -96,7 +96,16 @@ function pushToJira(config, jiraClient, issue) {
                             if (!(typeof value === 'string')) {
                                 value = JSON.stringify(value);
                             }
-                            jiraIssue['fields'][jiraFieldName] = value;
+                            if (mappedField['jiraType'] == "array") {
+                                if (!jiraIssue['fields'][jiraFieldName]) {
+                                    jiraIssue['fields'][jiraFieldName] = [];
+                                }
+                                jiraIssue['fields'][jiraFieldName].push(value);
+                            } else if (mappedField['jiraType'] == "object") {
+                                jiraIssue['fields'][jiraFieldName] = {name: value};
+                            } else {
+                                jiraIssue['fields'][jiraFieldName] = value;
+                            }
                         } else if (mappedField['defaultValue']) {
                             jiraIssue['fields'][jiraFieldName] = mappedField['defaultValue'];
                         } else {
