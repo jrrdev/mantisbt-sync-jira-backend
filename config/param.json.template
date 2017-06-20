@@ -6,7 +6,16 @@
         "project": {
             "id": "123",
             "name": "my-app-bt"
-        }
+        },
+        "closeStatus": "90",
+        "ignoreIssue": [
+                {
+                    "fieldName": "handlerUsername",
+                    "ignoreValues": [
+                        "user1"
+                    ]
+                }
+            ]
     },
     "target": {
         "type": "jira",
@@ -26,7 +35,11 @@
             "name": "Issue",
             "mantisCorrelationField": "10001"
         },
-        "mapping": []
+        "mapping": [{
+                "jiraName": "summary",
+                "mantisName": "summary"
+            }
+        ]
     },
     "subTasks": [
         {

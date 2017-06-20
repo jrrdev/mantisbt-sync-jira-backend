@@ -96,6 +96,11 @@ function pushToJira(config, jiraClient, issue) {
                             if (!(typeof value === 'string')) {
                                 value = JSON.stringify(value);
                             }
+                            if (mappedField['mapping'] && mappedField['mapping'].length>0) {
+                                mappedField['mapping'].forEach(function(curr) {
+                                    if (value == curr.from) value = curr.to;
+                                });
+                            }
                             if (mappedField['jiraType'] == "array") {
                                 if (!jiraIssue['fields'][jiraFieldName]) {
                                     jiraIssue['fields'][jiraFieldName] = [];
@@ -153,7 +158,7 @@ function getSourceIssues(config, mantisClient, jiraClient) {
 
     logger.debug("Retrieving open issues in Mantis");
     var uri = util.format('/bugs/search/findByProjectIdAndStatusIdNotIn?project=%s&status=%d&projection=%s',
-        config.source.project.id, 90, "bugDetails");
+        config.source.project.id, config.source.closeStatus, "bugDetails");
 
     mantisClient.get(uri, function (err, req, res, obj) {
         if (err) {
@@ -162,7 +167,21 @@ function getSourceIssues(config, mantisClient, jiraClient) {
             var issues = obj._embedded.bugs;
             for (var i = 0; i < issues.length; i++) {
                 var task = issues[i];
-                pushToJira(config, jiraClient, task);
+                var ignore = false;
+                if (config.source['ignoreIssue'] && config.source['ignoreIssue'].length>0) {
+                    config.source['ignoreIssue'].forEach(function(currField) {
+                        if (task[currField.fieldName] && currField.ignoreValues) {
+                            currField.ignoreValues.forEach(function(currValue){
+                                if (currValue == task[currField.fieldName]) ignore=true;
+                            });
+                        }
+                    });
+                }
+                if (!ignore) {
+                    pushToJira(config, jiraClient, task);
+                } else {
+                    logger.debug("Ignore Mantis issue %s", task.id);
+                }
             }
         }
     });
