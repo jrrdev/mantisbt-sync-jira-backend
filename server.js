@@ -130,6 +130,8 @@ function pushToJira(config, jiraClient, issue) {
                     } else if (obj.key) {
                         logger.info("Jira issue created : %s", obj.key);
                         createSubTasks(config, jiraClient, obj.key);
+                    } else {
+                        logger.error('Jira not created : %d -> %j', res.statusCode, res.headers);
                     }
                 });
             } else {
@@ -165,6 +167,7 @@ function getSourceIssues(config, mantisClient, jiraClient) {
             logger.error(err);
         } else {
             var issues = obj._embedded.bugs;
+            logger.debug(issues.length + " issues founded in Mantis");
             for (var i = 0; i < issues.length; i++) {
                 var task = issues[i];
                 var ignore = false;
