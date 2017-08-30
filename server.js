@@ -112,7 +112,16 @@ function pushToJira(config, jiraClient, issue) {
                                 jiraIssue['fields'][jiraFieldName] = value;
                             }
                         } else if (mappedField['defaultValue']) {
-                            jiraIssue['fields'][jiraFieldName] = mappedField['defaultValue'];
+                            if (mappedField['jiraType'] == "array") {
+                                if (!jiraIssue['fields'][jiraFieldName]) {
+                                    jiraIssue['fields'][jiraFieldName] = [];
+                                }
+                                jiraIssue['fields'][jiraFieldName].push(mappedField['defaultValue']);
+                            } else if (mappedField['jiraType'] == "object") {
+                                jiraIssue['fields'][jiraFieldName] = {name: mappedField['defaultValue']};
+                            } else {
+                                jiraIssue['fields'][jiraFieldName] = mappedField['defaultValue'];
+                            }
                         } else {
                             logger.error("Can't find fieldValue in mapping", JSON.stringify(mappedField));
                         }
@@ -169,8 +178,8 @@ function getSourceIssues(config, mantisClient, jiraClient) {
             var issues = obj._embedded.bugs;
             logger.debug(issues.length + " issues founded in Mantis");
             for (var i = 0; i < issues.length; i++) {
-                var task = issues[i];
-                var ignore = false;
+                let task = issues[i];
+                let ignore = false;
                 if (config.source['ignoreIssue'] && config.source['ignoreIssue'].length>0) {
                     config.source['ignoreIssue'].forEach(function(currField) {
                         if (task[currField.fieldName] && currField.ignoreValues) {
@@ -181,7 +190,10 @@ function getSourceIssues(config, mantisClient, jiraClient) {
                     });
                 }
                 if (!ignore) {
-                    pushToJira(config, jiraClient, task);
+                    setTimeout(function() {
+                      // five query by sec
+                      pushToJira(config, jiraClient, task);
+                    }, i * 200);
                 } else {
                     logger.debug("Ignore Mantis issue %s", task.id);
                 }
@@ -196,6 +208,7 @@ function synForConfig(config) {
     var mantisClient = restify.createJsonClient({
             url: config['source']['url'],
             version: '*',
+            followRedirects: true,
             log: logger
         });
 
@@ -207,6 +220,7 @@ function synForConfig(config) {
     var jiraClient = restify.createJsonClient({
         url: config.target.url,
         version: '*',
+        followRedirects: true,
         log: logger
     });
 
