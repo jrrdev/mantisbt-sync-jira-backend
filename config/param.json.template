@@ -6,11 +6,21 @@
         "project": {
             "id": "123",
             "name": "my-app-bt"
-        }
+        },
+        "closeStatus": "90",
+        "ignoreIssue": [
+                {
+                    "fieldName": "handlerUsername",
+                    "ignoreValues": [
+                        "user1"
+                    ]
+                }
+            ]
     },
     "target": {
         "type": "jira",
-        "url": "http://localhost:8082/jira/rest/api/2",
+        "url": "http://localhost:8082",
+        "contextroot": "/jira/rest/api/2",
         "username": "user",
         "password": "password",
         "project": {
@@ -22,8 +32,14 @@
     "convert": {
         "issueType": {
             "id": "1",
-            "name": "Issue"
-        }
+            "name": "Issue",
+            "mantisCorrelationField": "10001"
+        },
+        "mapping": [{
+                "jiraName": "summary",
+                "mantisName": "summary"
+            }
+        ]
     },
     "subTasks": [
         {

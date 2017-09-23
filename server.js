@@ -6,21 +6,24 @@ var allConfig = require('./config/param.json');
 
 var logger = bunyan.createLogger({
     name: "mantisbt-sync-jira",
-	level: "debug"
+    level: "debug"
 });
 
 var server = restify.createServer({
-	name: "mantisbt-sync-jira",
-	log: logger
+    name: "mantisbt-sync-jira",
+    log: logger,
+    serializers: {
+        req: bunyan.stdSerializers.req
+    }
 });
 
 function createSubTasks(config, jiraClient, parentKey) {
 
     if (config.subTasks && parentKey) {
-		logger.info("Creating subtask for Jira issue %s", parentKey);
-	
-		for (var i = 0; i < config.subTasks.length; i++) {
-			var subtask = config.subTasks[i];
+        logger.info("Creating subtask for Jira issue %s", parentKey);
+    
+        for (var i = 0; i < config.subTasks.length; i++) {
+            var subtask = config.subTasks[i];
             var jiraSubtask = {
                 "fields": {
                     "project": {
@@ -37,23 +40,23 @@ function createSubTasks(config, jiraClient, parentKey) {
                     "reporter": config.source.username
                 }
             };
-			
-			logger.info("Creating subtask for Jira issue %s - %s", parentKey, subtask.summary);
-			
-            jiraClient.post('/jira2/rest/api/2/issue', jiraSubtask, function (err, req, res, obj) {
+            
+            logger.info("Creating subtask for Jira issue %s - %s", parentKey, subtask.summary);
+            
+            jiraClient.post(config.target.contextroot + '/issue', jiraSubtask, function (err, req, res, obj) {
                 if (err) {
                     logger.error(err);
                 }
             });
         }
     }
-	
-	logger.info("End creating subtask for Jira issue %s", parentKey);
+    
+    logger.info("End creating subtask for Jira issue %s", parentKey);
 }
 
 function pushToJira(config, jiraClient, issue) {
 
-    var jql = util.format('"cf[10017]" ~ "%s"', issue.id);
+    var jql = util.format('"cf[%s]"~"%s"', config.convert.issueType.mantisCorrelationField, issue.id);
     var query = {
         "jql": jql,
         "startAt": 0,
@@ -63,13 +66,14 @@ function pushToJira(config, jiraClient, issue) {
         ]
     };
 
-	logger.debug("Searching existing issue in Jira with id %s", issue.id);
-    jiraClient.post('/jira2/rest/api/2/search', query, function (err, req, res, obj) {
+    logger.debug("Searching existing issue in Jira with id %s (type: %s)", issue.id, config.convert.issueType.mantisCorrelationField);
+    jiraClient.post(config.target.contextroot + '/search', query, function(err, req, res, obj) {
         if (err) {
-            logger.error(err);
+            logger.error('%d -> %j', res.statusCode, res.headers);
+            //logger.debug(err);
         } else {
-            if (!obj.issues || !obj.issues.length) {
-			
+            if (!obj.issues || obj.issues.length == 0) {
+            
                 var jiraIssue = {
                     "fields": {
                         "project": {
@@ -80,40 +84,67 @@ function pushToJira(config, jiraClient, issue) {
                         }
                     }
                 };
-				
-				var mapping = config.convert.mapping;
-				for (var i = 0; i < mapping.length; i++) {
-					var mappedField = mapping[i];
-					if (mappedField['jiraName']) {
-						var jiraFieldName = mappedField['jiraName'];
-						if (mappedField['mantisName']) {
-							var mantisFieldName = mappedField['mantisName'];
-							var value = issue[mantisFieldName];
-							if (!(typeof value === 'string')) {
-								value = JSON.stringify(value);
-							}
-							jiraIssue['fields'][jiraFieldName] = value;
-						} else if (mappedField['defaultValue']) {
-							jiraIssue['fields'][jiraFieldName] = mappedField['defaultValue'];
-						} else {
-							logger.error("Can't find fieldValue in mapping", JSON.stringify(mappedField));
-						}
-					} else {
-						logger.error("Can't find jira field name in mapping", JSON.stringify(mappedField));
-					}
-				}
+                
+                var mapping = config.convert.mapping;
+                for (var i = 0; i < mapping.length; i++) {
+                    var mappedField = mapping[i];
+                    if (mappedField['jiraName']) {
+                        var jiraFieldName = mappedField['jiraName'];
+                        if (mappedField['mantisName']) {
+                            var mantisFieldName = mappedField['mantisName'];
+                            var value = issue[mantisFieldName];
+                            if (!(typeof value === 'string')) {
+                                value = JSON.stringify(value);
+                            }
+                            if (mappedField['mapping'] && mappedField['mapping'].length>0) {
+                                mappedField['mapping'].forEach(function(curr) {
+                                    if (value == curr.from) value = curr.to;
+                                });
+                            }
+                            if (mappedField['jiraType'] == "array") {
+                                if (!jiraIssue['fields'][jiraFieldName]) {
+                                    jiraIssue['fields'][jiraFieldName] = [];
+                                }
+                                jiraIssue['fields'][jiraFieldName].push(value);
+                            } else if (mappedField['jiraType'] == "object") {
+                                jiraIssue['fields'][jiraFieldName] = {name: value};
+                            } else {
+                                jiraIssue['fields'][jiraFieldName] = value;
+                            }
+                        } else if (mappedField['defaultValue']) {
+                            if (mappedField['jiraType'] == "array") {
+                                if (!jiraIssue['fields'][jiraFieldName]) {
+                                    jiraIssue['fields'][jiraFieldName] = [];
+                                }
+                                jiraIssue['fields'][jiraFieldName].push(mappedField['defaultValue']);
+                            } else if (mappedField['jiraType'] == "object") {
+                                jiraIssue['fields'][jiraFieldName] = {name: mappedField['defaultValue']};
+                            } else {
+                                jiraIssue['fields'][jiraFieldName] = mappedField['defaultValue'];
+                            }
+                        } else {
+                            logger.error("Can't find fieldValue in mapping", JSON.stringify(mappedField));
+                        }
+                    } else {
+                        logger.error("Can't find jira field name in mapping", JSON.stringify(mappedField));
+                    }
+                }
 
-				logger.info("Creating Jira issue for Mantis %d", issue.id);
-				logger.debug("Pushing issue data : %s", JSON.stringify(jiraIssue));
-				
-                jiraClient.post('/jira2/rest/api/2/issue', jiraIssue, function (err, req, res, obj) {
+                logger.info("Creating Jira issue for Mantis %d", issue.id);
+                logger.debug("Pushing issue data : %s", JSON.stringify(jiraIssue));
+                
+                jiraClient.post(config.target.contextroot + '/issue', jiraIssue, function (err, req, res, obj) {
                     if (err) {
                         logger.error(err);
                     } else if (obj.key) {
-						logger.info("Jira issue created : %s", obj.key);
+                        logger.info("Jira issue created : %s", obj.key);
                         createSubTasks(config, jiraClient, obj.key);
+                    } else {
+                        logger.error('Jira not created : %d -> %j', res.statusCode, res.headers);
                     }
                 });
+            } else {
+                logger.debug("Jira issue already exists");
             }
         }
     });
@@ -121,33 +152,51 @@ function pushToJira(config, jiraClient, issue) {
 
 // Function to retrieve the configuration for a given project
 function getConfigForProject(projectId) {
-	var allProjects = allConfig.projects;
-	
-	for (var i = 0; i < allProjects.length; i++) {
-		var project = allProjects[i];
-		if (project.id == projectId) {
-			return project;
-		}
-	}
-	
-	logger.error("No project found for id %d", projectId);
+    var allProjects = allConfig.projects;
+    
+    for (var i = 0; i < allProjects.length; i++) {
+        var project = allProjects[i];
+        if (project.id == projectId) {
+            return project;
+        }
+    }
+    
+    logger.error("No project found for id %d", projectId);
 }
 
 // Function to fetch all active issues in Mantis
 function getSourceIssues(config, mantisClient, jiraClient) {
 
-	logger.debug("Retrieving open issues in Mantis");
+    logger.debug("Retrieving open issues in Mantis");
     var uri = util.format('/bugs/search/findByProjectIdAndStatusIdNotIn?project=%s&status=%d&projection=%s',
-        config.source.project.id, 90, "bugDetails");
+        config.source.project.id, config.source.closeStatus, "bugDetails");
 
     mantisClient.get(uri, function (err, req, res, obj) {
         if (err) {
             logger.error(err);
         } else {
             var issues = obj._embedded.bugs;
-			for (var i = 0; i < issues.length; i++) {
-				var task = issues[i];
-                pushToJira(config, jiraClient, task);
+            logger.debug(issues.length + " issues founded in Mantis");
+            for (var i = 0; i < issues.length; i++) {
+                let task = issues[i];
+                let ignore = false;
+                if (config.source['ignoreIssue'] && config.source['ignoreIssue'].length>0) {
+                    config.source['ignoreIssue'].forEach(function(currField) {
+                        if (task[currField.fieldName] && currField.ignoreValues) {
+                            currField.ignoreValues.forEach(function(currValue){
+                                if (currValue == task[currField.fieldName]) ignore=true;
+                            });
+                        }
+                    });
+                }
+                if (!ignore) {
+                    setTimeout(function() {
+                      // five query by sec
+                      pushToJira(config, jiraClient, task);
+                    }, i * 200);
+                } else {
+                    logger.debug("Ignore Mantis issue %s", task.id);
+                }
             }
         }
     });
@@ -155,59 +204,61 @@ function getSourceIssues(config, mantisClient, jiraClient) {
 
 function synForConfig(config) {
 
-	logger.debug("Creating Mantis REST client for endpoint %s", config['source']['url']);
-	var mantisClient = restify.createJsonClient({
-			url: config['source']['url'],
-			version: '*',
-			log: logger
-		});
+    logger.debug("Creating Mantis REST client for endpoint %s", config['source']['url']);
+    var mantisClient = restify.createJsonClient({
+            url: config['source']['url'],
+            version: '*',
+            followRedirects: true,
+            log: logger
+        });
 
-	if (config.source.username) {
-		mantisClient.basicAuth(config.source.username, config.source.password);
-	}
+    if (config.source.username) {
+        mantisClient.basicAuth(config.source.username, config.source.password);
+    }
 
-	logger.debug("Creating Jira REST client for endpoint %s", config.target.url);
-	var jiraClient = restify.createJsonClient({
-		url: config.target.url,
-		version: '*',
-		log: logger
-	});
+    logger.debug("Creating Jira REST client for endpoint %s", config.target.url);
+    var jiraClient = restify.createJsonClient({
+        url: config.target.url,
+        version: '*',
+        followRedirects: true,
+        log: logger
+    });
 
-	if (config.target.username) {
-		jiraClient.basicAuth(config.target.username, config.target.password);
-	}
+    if (config.target.username) {
+        jiraClient.basicAuth(config.target.username, config.target.password);
+    }
 
-	getSourceIssues(config, mantisClient, jiraClient);
+    getSourceIssues(config, mantisClient, jiraClient);
 }
 
 server.get('/launch/:projectId', function create(req, res, next) {
     logger.info("Starting sync for project %s", req.params.projectId);
-	
-	var config = getConfigForProject(req.params.projectId);
-	
-	if (config) {
-		synForConfig(config);
-		res.send(200);
-		
-	} else {
-		res.send(500);
-	}
-	
+    
+    var config = getConfigForProject(req.params.projectId);
+    
+    if (config) {
+        synForConfig(config);
+        res.send(200);
+        
+    } else {
+        res.send(500);
+    }
+    
     return next();
 });
 
 server.get('/launchAll', function create(req, res, next) {
 
-	var allProjects = allConfig.projects;
-	
-	for (var i = 0; i < allProjects.length; i++) {
-		var project = allProjects[i];
-		logger.info("Starting sync for project %s", project.id);
-		
-		synForConfig(project);
-	}
-	
-	res.send(200);
+    var allProjects = allConfig.projects;
+    
+    for (var i = 0; i < allProjects.length; i++) {
+        var project = allProjects[i];
+        logger.info("Starting sync for project %s", project.id);
+        
+        synForConfig(project);
+    }
+    
+    res.send(200);
     return next();
 });
 
